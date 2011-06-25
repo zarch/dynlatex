@@ -1,0 +1,141 @@
+Dynamic LaTex Generator
+==========================
+
+Link: https://github.com/zarch/dynlatex
+
+
+Description:
+------------
+
+Dynlatex is a dynamic latex generator using jinja template and add some more 
+filters usefull for latex document.
+
+Features:
+---------
+
+It generate table from csv files
+It generate figure from image file
+It generate subfigure from a directory
+
+Dependencies:
+-------------
+
+ - Python2.X;
+ - jinja2;
+
+Installation:
+-------------
+
+Just extract code into a directory and use it
+
+Usage:
+------
+
+Usage is simple, in your LaTex source now you can use jinja template synatax.
+Dynlatex add some usefull filters like `table` that allow to insert a table 
+from a <csvfile>.
+
+{{ 'example/some.csv'|table }}
+
+Now if you run in a shell:
+
+$ python dyn.py /examples/simple.tex
+
+This comand generate a latex file in 'build/examples/simple.tex' that contain:
+
+\begin{table}[htb!]
+  \scriptsize 
+  \centering
+  \begin{tabular}{ ccc }
+Name & Weight & Heigth \\
+Pippo & 58.789 & 1.828 \\
+Pluto & 16.983 & 0.608 \\
+  \end{tabular}
+  
+  
+\end{table}
+
+In the latex document you can give more option to the filter, 
+like in 'examples/parameter.tex'
+
+{{ 'some.csv'|table(add_hline='0,-1',numberformat = '{0:6.1f}', label='tab0', caption='Data from csv.') }}
+
+to add: label, caption and hlines in your tab.
+
+\begin{table}[htb!]
+  \scriptsize 
+  \centering
+  \begin{tabular}{ ccc }
+\hline
+Name & Weight & Heigth \\
+Pippo &   58.8 &    1.8 \\
+Pluto &   17.0 &    0.6 \\
+\hline
+  \end{tabular}
+  \caption{ Data from csv. }
+  \label{ tab0 }
+\end{table}
+
+
+See the configuration file to a complete list of parameters.
+
+Could be usefull to set different "style" to the table.
+
+See all the comand options with:
+
+$ python dyn.py -h
+
+
+
+Configuration File:
+--------------------
+
+It is possible to read a <cfgfile> to specify general options to apply 
+to the document, and to add more dictionary callable in the template.
+Where <cfgfile> is a file structured like the dyn.cfg reported in the
+archive. This is an example of configuration file:
+
+[general]
+# set where to find your project files, if multiple files separates with ','
+source = examples/
+# set where you want to put generate files
+dest = build/
+# set which file should be consider a latex template, if multiple separates with ','
+srcext = .tex
+# set which file should be consider an image, if multiple separates with ','
+imgext = .png, .pdf, .jpg
+# set if you want to compile or not
+compile = True
+# set which comand use to compile
+pdfcomand = pdflatex build/main.tex
+# set if you want to make a copy or a link in a build directory
+# Note: work only on unix
+link = True  
+verbose = False
+
+[table]
+# here it is possible to set all the default value to build table latex code
+# set csv delimeter
+delimiter = ,
+# set if you want to transform number format, using python number format rules
+# see: http://docs.python.org/library/string.html#format-specification-mini-language
+numberformat = {0:.2f}
+# set default position of the table
+position = htb!
+# set default vertical lines 
+#add_vline = 1
+# set default horizontal lines 
+add_hline = 0,-1
+# specify your column layout, exemple: 0:l,1:c,2:r
+col_layout = 0:l
+# specify default column layout
+col_layout_default = c
+# set more table options
+more = '\\scriptsize \n  \\centering'
+
+[figure]
+position = htb!
+more = \\centering
+width = 1
+
+

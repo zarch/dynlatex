@@ -1,0 +1,23 @@
+ # Can ignore specific files
+#.DS_Store
+.spyderproject
+
+# Use wildcards as well
+*.pyc
+*~
+*.log
+*.aux
+*.spl
+*.pdf
+*.dvi
+*.bbl
+*.brf
+*.blg
+*.out
+*.bak
+*.backup
+
+# Can also ignore all directories and files in a directory.
+#tmp/**/*
+build/*
+

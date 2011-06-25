@@ -1,0 +1,10 @@
+{{ info.surname }} - {{ info.name }}
+
+Now insert a table from a csv file, using euro style:
+
+{{ 'some.csv'|table(label='t:euro', caption='Table with Euro', **euro) }}
+
+
+Now try to use dollar style:
+
+{{ 'some.csv'|table(label='t:dollar', caption='Table with Dollar', **dollar) }}

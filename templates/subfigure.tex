@@ -1,0 +1,9 @@
+\begin{figure}[{{ position }}]
+  {{ more }}
+  {% for fig in figulist %}
+  \subfigure[{{ fig.name }}.]
+    {\includegraphics[width={{ width }}]{ {{ fig.path }} }}
+  {% endfor %}
+  {% if caption %}\caption{ {{ caption }} }{% endif %}
+  {% if label %}\label{ {{ label }} }{% endif %}
+\end{figure}

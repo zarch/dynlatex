@@ -1,0 +1,6 @@
+\begin{figure}[{{ position }}]
+  {{ more }}
+    \includegraphics[width={{ width }}\textwidth]{ {{ fig }} }
+    {% if caption %}\\caption{ {{ caption }} }{% endif %}
+    {% if label %}\\label{ {{ label }} }{% endif %}
+\end{figure}
