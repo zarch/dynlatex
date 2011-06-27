@@ -199,10 +199,10 @@ def readgeneral(config):
     else:
         general.link = True
         
-    if 'pdfcomand' in items:
-        general.pdfcomand = config.get('general','pdfcomand')
+    if 'pdfcommand' in items:
+        general.pdfcommand = config.get('general','pdfcommand')
     else:
-        general.pdfcomand = 'pdflatex build/main.tex'
+        general.pdfcommand = 'pdflatex build/main.tex'
         
     if 'dest' in items:
         general.dest = config.get('general','dest')
@@ -250,7 +250,7 @@ if __name__ == "__main__":
     parser.add_option("-x", "--compile", action="store_true", dest="compile", 
                       default=False, metavar="BOOLEAN",
                       help="Compile generated latex to produce pdf")
-    parser.add_option("-p", "--pdfcomand", dest="pdfcomand", 
+    parser.add_option("-p", "--pdfcommand", dest="pdfcommand", 
                       default='pdflatex build/main.tex',
                       help="Define the comand that you want to use to compile LaTex files", 
                       metavar="STRING")
@@ -262,6 +262,8 @@ if __name__ == "__main__":
                       help="Get more Info")
     
     (options, args) = parser.parse_args()
+    
+    optcompile =  options.compile   
     
     if options.cfg:
         print options.cfg
@@ -283,9 +285,21 @@ if __name__ == "__main__":
                   link=options.link)
     else:
          print('Give me a latex source! Use cfg file or cmd line')
-#    if options['compile']:
-#        # run compile comand
-#        pass
+
+    if optcompile:
+        # change dir
+       
+        odir = os.path.abspath(os.path.curdir)
+        newdirpath, newfilepath = get_newpath(options.source[0], options.dest)
+        print 'moving into: ', newdirpath
+        os.chdir(newdirpath)
+        # run compile comand
+        print 'Start to compile using: '
+        print options.pdfcommand
+        print '='*50
+        os.system(options.pdfcommand)
+        os.chdir(odir)
+        
         
 
 #===============================================================================
