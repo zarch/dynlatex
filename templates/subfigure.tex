@@ -1,8 +1,8 @@
 \begin{figure}[{{ position }}]
   {{ more }}
-  {% for fig in figulist %}
-  \subfigure[{{ fig.name }}.]
-    {\includegraphics[width={{ width }}]{ {{ fig.path }} }}
+  {% for row in figulist %}{% for fig in row %}\subfloat[{{ fig.name }}{% if label %}\label{ {{ label }}:{{ fig.name }} }{% endif %}]{
+      \includegraphics[{{ width }}]{{ '{' }}{{ fig.path }}{{ '}' }}
+    }{% endfor %} \\ 
   {% endfor %}
   {% if caption %}\caption{ {{ caption }} }{% endif %}
   {% if label %}\label{ {{ label }} }{% endif %}
