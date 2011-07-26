@@ -8,16 +8,24 @@ Dynamic LaTex Generator
 
 
 """
+import os, shutil, sys
+#print "where we are: ", os.getcwd()
+#print "where dyn.py is", os.path.abspath(__file__)
+sys.path.append(os.path.abspath(__file__))
+
 from datetime import datetime
 from filters import Environment
 from optparse import OptionParser
-import os, shutil
+
 import ConfigParser
+
+
 
 def makedir(path):
     """Create directories and subdirectories like `mkdir -p` """
     directories = path.split(os.sep)
     origdir = os.path.abspath(os.path.curdir)
+    #print 'makedir: ', path
     for _ in directories:
         if os.path.exists(_)==False:
             os.mkdir(_)
@@ -26,54 +34,45 @@ def makedir(path):
     os.chdir(origdir)
 
 
-def get_newpath(filepath, dest):
-    """Return the modify directory path and file path given a destination
-    >>> get_newpath('something/main.tex', 'build')
-    ('build/something', 'build/something/main.tex')
-    """
-    # split the path in directories and in filename
-    dirpath, filename = os.path.split(filepath)
-    # split in subdirectories
-    directories = dirpath.split(os.sep)
-    # insert the destination
-    directories.insert(0, dest)
-    newdirpath = os.sep.join(directories)
-    directories.append(filename)
-    newfilepath = os.sep.join(directories)
-    return newdirpath, newfilepath
-
-
 
 def renderfile(_src, _dst, kargs):
     """Generate a rendred file from a jinja template.
+    >>> makedir('build')
     >>> opt = {'info': {'surname': 'Bonaparte', 'name': 'Napoleone'}, 
     ...        'tab' : {'add_hline': '0,1,-1', 'col_layout': '0:l'}}
     >>> renderfile('examples/main.tex', 'build', opt)
-    >>> os.path.isfile('build/examples/main.tex')
+    >>> os.path.isfile('build/main.tex')
     True
     >>> shutil.rmtree('build/')
     """
     # load the template
     template = Environment.from_string(open(_src, 'rb').read())
+    srcname = os.path.split(_src)[1]
     # get the new paths, for directory and file
-    newdirpath, newfilepath = get_newpath(_src, _dst)
+    #newdirpath, newfilepath = get_newpath(_src, _dst)
     # no error if existing, make parent directories as needed
-    makedir(newdirpath) # like in a shell the comand "make -p" 
+    newfilepath = os.path.join(_dst, srcname)
+    #makedir(newdirpath) # like in a shell the comand "make -p" 
     newf = open(newfilepath, 'w')
     # record path, where we are as original directory
-    odir = os.path.abspath(os.path.curdir)
+    _odir = os.path.abspath(os.path.curdir)
     # move into the directory contain the template
-    os.chdir(os.path.split(_src)[0])
+    # in order to respect the path contained in the tempalate
+    os.chdir(os.path.split(_src)[0]) 
     # do a render and write it to a file
     #import pdb; pdb.set_trace()
     try:
         newf.write(template.render(**kargs))
         newf.close()
     except TypeError:
+        print '\n'.join(['{0} : {1}'.format(k, v) for k, v in kargs.items()])
         raise TypeError("Are you calling in your template a dictionary or \
-obj not define in your configuration file?")
+obj not define in your configuration file?") 
+    # could be a variable that as been wrong defined, 
+    # for example if you delete the int() trasformation of col 
+    # variable in filter.do_figure
     # move back to original directory
-    os.chdir(odir)
+    os.chdir(_odir)
     
 def istemplate(_src, extensions=['.tex']):
     """Return True the file is a template
@@ -120,7 +119,7 @@ def get_filelist(_src):
 
 
 
-def processrc(srclist, default, _dst='build', srcext=['.tex',], link='False'): 
+def processrc(srclist, default, _dst='build', srcext=['.tex',], link=False): 
     """Process a list of file, understand if is a source file 
     and using as a template for jinja, It work recursively in the directories
     >>> opt = {'info': {'surname': 'Bonaparte', 'name': 'Napoleone'}, 
@@ -131,7 +130,7 @@ def processrc(srclist, default, _dst='build', srcext=['.tex',], link='False'):
     ...                 'numberformat' : '{0:.2f} dollar'}, #.decode('utf-8')},
     ...       }
     >>> processrc(['examples/main.tex',], opt, srcext=['.tex',], link=True)
-    >>> os.listdir('build/examples/')
+    >>> os.listdir('build/')
     ['main.tex']
     >>> processrc(['examples/',], opt, srcext=['.tex',], link=True)
     >>> directory = os.listdir('build/examples/') 
@@ -139,26 +138,44 @@ def processrc(srclist, default, _dst='build', srcext=['.tex',], link='False'):
     >>> directory # doctest:+ELLIPSIS
     ['copy.txt', ..., 'test.cfg']
     >>> shutil.rmtree('build/')"""
-    if type(srclist)==list:
+    if type(srclist)==list:    
+        # start the cicle to render all files
         for _src in srclist:
+            if _src[-1] == os.sep:
+                _src = _src[:-1] 
             # check if src is a file or a directory
             if istemplate(_src, srcext):
+                #print 'is a template src: ', _src
+                makedir(_dst)
                 # src is a file
                 renderfile(_src, _dst, default)
             elif os.path.isfile(_src):
-                # src is file but not a templpate
+                # src is file but not a templpate _dst
                 # check, if not unix link=False
+                #print 'is a file: ', _src
                 if os.name != 'posix':
                     link = False
-                newdirpath, newfilepath = get_newpath(_src, _dst)
-                copy(_src, newfilepath, link)
+                srcdir, srcname = os.path.split(_src)
+                try:
+                    makedir(_dst)
+                    copy(_src, os.path.join(_dst, srcname), link)
+                except OSError:
+                    #print "OSError: File exists ", os.path.join(_dst, srcname)
+                    #print " the file will not be copied
+                    #import pdb; pdb.set_trace()
+                    pass
             else:
                 # src is a directory
-                # get a list of new sources
+                srcdir = os.path.split(_src)[1]
+                _dst = os.path.join(_dst, srcdir)
                 #import pdb; pdb.set_trace()
+                makedir(_dst)
+                # get a list of new sources
+                
                 slist = get_filelist(_src)
                 # and then process
-                processrc(slist, default, _dst=_dst, srcext=srcext, link=link)
+                processrc(slist, default, _dst=_dst, srcext=srcext, 
+                          link=link)
     else:
         raise TypeError('Srclist must be a list here! ;-)')
 
@@ -252,11 +269,13 @@ if __name__ == "__main__":
                       help="Compile generated latex to produce pdf")
     parser.add_option("-p", "--pdfcommand", dest="pdfcommand", 
                       default='pdflatex build/main.tex',
-                      help="Define the comand that you want to use to compile LaTex files", 
+                      help="Define the comand that you want to use to compile\
+ LaTex files", 
                       metavar="STRING")
     parser.add_option("-l", "--link", action="store_true", dest="link", 
                       default=False,  metavar="BOOLEAN",
-                      help="For not source files, make  a link the build directory")
+                      help="For not source files, make  a link the build\
+ directory")
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose", 
                       default=False,  metavar="BOOLEAN",
                       help="Get more Info")
@@ -264,6 +283,9 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
     
     optcompile =  options.compile   
+    
+    #print '\n\n   dyn: ', os.getcwd()
+    odir = os.path.abspath(os.path.curdir)
     
     if options.cfg:
         print options.cfg
@@ -276,29 +298,31 @@ if __name__ == "__main__":
         options.source = args
     
     if options.source:
-        #import pdb; pdb.set_trace()
-        # last comand:
-        # $ python2 dyn.py -c examples/test.cfg examples/main.tex
+        if options.dest == None:
+            # destination is not define, then make a "build" directory 
+            # in the folder where we run the program
+            options.dest = os.path.join(os.getcwd(),'build')
+            
+        # Start to process sources
         processrc(options.source, opt, 
                   _dst=options.dest, 
                   srcext=options.srcext.replace(' ','').split(','),
                   link=options.link)
     else:
-         print('Give me a latex source! Use cfg file or cmd line')
+        print('Give me a latex source! Use cfg file or cmd line')
 
     if optcompile:
         # change dir
        
         odir = os.path.abspath(os.path.curdir)
-        newdirpath, newfilepath = get_newpath(options.source[0], options.dest)
-        print 'moving into: ', newdirpath
-        os.chdir(newdirpath)
+        print 'moving into: ', options.dest
+        os.chdir(options.dest)
         # run compile comand
         print 'Start to compile using: '
         print options.pdfcommand
         print '='*50
         os.system(options.pdfcommand)
-        os.chdir(odir)
+    os.chdir(odir)
         
         
 
