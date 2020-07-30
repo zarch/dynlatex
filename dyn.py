@@ -1,4 +1,4 @@
- # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Created on Tue Jun 21 12:14:52 2011
 
@@ -8,31 +8,31 @@ Dynamic LaTex Generator
 
 
 """
-import os, shutil, sys
-#print "where we are: ", os.getcwd()
-#print "where dyn.py is", os.path.abspath(__file__)
-sys.path.append(os.path.abspath(__file__))
-
+import configparser
+import os
+import shutil
+import sys
 from datetime import datetime
-from filters import Environment
 from optparse import OptionParser
 
-import ConfigParser
+from filters import Environment
 
+# print "where we are: ", os.getcwd()
+# print "where dyn.py is", os.path.abspath(__file__)
+sys.path.append(os.path.abspath(__file__))
 
 
 def makedir(path):
     """Create directories and subdirectories like `mkdir -p` """
     directories = path.split(os.sep)
     origdir = os.path.abspath(os.path.curdir)
-    #print 'makedir: ', path
+    # print 'makedir: ', path
     for _ in directories:
-        if os.path.exists(_)==False:
+        if os.path.exists(_) == False:
             os.mkdir(_)
         os.chdir(_)
     # return to the previous directory
     os.chdir(origdir)
-
 
 
 def renderfile(_src, _dst, kargs):
@@ -46,35 +46,43 @@ def renderfile(_src, _dst, kargs):
     >>> shutil.rmtree('build/')
     """
     # load the template
-    template = Environment.from_string(open(_src, 'rb').read())
+    with open(_src, "r") as srcfile:
+        srcbytes = srcfile.read()
+
+    template = Environment.from_string(srcbytes)
     srcname = os.path.split(_src)[1]
     # get the new paths, for directory and file
-    #newdirpath, newfilepath = get_newpath(_src, _dst)
+    # newdirpath, newfilepath = get_newpath(_src, _dst)
     # no error if existing, make parent directories as needed
     newfilepath = os.path.join(_dst, srcname)
-    #makedir(newdirpath) # like in a shell the comand "make -p" 
-    newf = open(newfilepath, 'w')
-    # record path, where we are as original directory
-    _odir = os.path.abspath(os.path.curdir)
-    # move into the directory contain the template
-    # in order to respect the path contained in the tempalate
-    os.chdir(os.path.split(_src)[0]) 
-    # do a render and write it to a file
-    #import pdb; pdb.set_trace()
-    try:
-        newf.write(template.render(**kargs))
-        newf.close()
-    except TypeError:
-        print '\n'.join(['{0} : {1}'.format(k, v) for k, v in kargs.items()])
-        raise TypeError("Are you calling in your template a dictionary or \
-obj not define in your configuration file?") 
-    # could be a variable that as been wrong defined, 
-    # for example if you delete the int() trasformation of col 
+    makedir(_dst)  # like in a shell the comand "make -p"
+    with open(newfilepath, "w") as newf:
+        # record path, where we are as original directory
+        _odir = os.path.abspath(os.path.curdir)
+        # move into the directory contain the template
+        # in order to respect the path contained in the tempalate
+        os.chdir(os.path.split(_src)[0])
+        # do a render and write it to a file
+        # import pdb; pdb.set_trace()
+        try:
+            newf.write(template.render(**kargs))
+            newf.close()
+        except TypeError:
+            print(
+                ("\n".join(["{0} : {1}".format(k, v) for k, v in list(kargs.items())]))
+            )
+            raise TypeError(
+                "Are you calling in your template a dictionary or \
+    obj not define in your configuration file?"
+            )
+    # could be a variable that as been wrong defined,
+    # for example if you delete the int() trasformation of col
     # variable in filter.do_figure
     # move back to original directory
     os.chdir(_odir)
-    
-def istemplate(_src, extensions=['.tex']):
+
+
+def istemplate(_src, extensions=[".tex"]):
     """Return True the file is a template
     >>> istemplate('examples/main.tex')
     True
@@ -86,7 +94,6 @@ def istemplate(_src, extensions=['.tex']):
     ext = os.path.splitext(_src)[-1]
     # src is a template file
     return os.path.isfile(_src) and (ext in extensions)
-        
 
 
 def copy(_src, _dst, link):
@@ -100,9 +107,9 @@ def copy(_src, _dst, link):
     >>> os.remove('examples/copy_no_link.txt')
     >>> os.remove('examples/copy_link.txt')
     """
-    if link: # make a link
+    if link:  # make a link
         os.symlink(_src, _dst)
-    else: # copy
+    else:  # copy
         shutil.copy(_src, _dst)
 
 
@@ -118,8 +125,7 @@ def get_filelist(_src):
     return filelist
 
 
-
-def processrc(srclist, default, _dst='build', srcext=['.tex',], link=False): 
+def processrc(srclist, default, _dst="build", srcext=[".tex",], link=False):
     """Process a list of file, understand if is a source file 
     and using as a template for jinja, It work recursively in the directories
     >>> opt = {'info': {'surname': 'Bonaparte', 'name': 'Napoleone'}, 
@@ -138,193 +144,233 @@ def processrc(srclist, default, _dst='build', srcext=['.tex',], link=False):
     >>> directory # doctest:+ELLIPSIS
     ['copy.txt', ..., 'test.cfg']
     >>> shutil.rmtree('build/')"""
-    if type(srclist)==list:    
+    if type(srclist) == list:
         # start the cicle to render all files
         for _src in srclist:
             if _src[-1] == os.sep:
-                _src = _src[:-1] 
+                _src = _src[:-1]
             # check if src is a file or a directory
             if istemplate(_src, srcext):
-                #print 'is a template src: ', _src
+                # print 'is a template src: ', _src
                 makedir(_dst)
                 # src is a file
                 renderfile(_src, _dst, default)
             elif os.path.isfile(_src):
                 # src is file but not a templpate _dst
                 # check, if not unix link=False
-                #print 'is a file: ', _src
-                if os.name != 'posix':
+                # print 'is a file: ', _src
+                if os.name != "posix":
                     link = False
                 srcdir, srcname = os.path.split(_src)
                 try:
                     makedir(_dst)
                     copy(_src, os.path.join(_dst, srcname), link)
                 except OSError:
-                    #print "OSError: File exists ", os.path.join(_dst, srcname)
-                    #print " the file will not be copied
-                    #import pdb; pdb.set_trace()
+                    # print "OSError: File exists ", os.path.join(_dst, srcname)
+                    # print " the file will not be copied
+                    # import pdb; pdb.set_trace()
                     pass
             else:
                 # src is a directory
                 srcdir = os.path.split(_src)[1]
                 _dst = os.path.join(_dst, srcdir)
-                #import pdb; pdb.set_trace()
+                # import pdb; pdb.set_trace()
                 makedir(_dst)
                 # get a list of new sources
-                
+
                 slist = get_filelist(_src)
                 # and then process
-                processrc(slist, default, _dst=_dst, srcext=srcext, 
-                          link=link)
+                processrc(slist, default, _dst=_dst, srcext=srcext, link=link)
     else:
-        raise TypeError('Srclist must be a list here! ;-)')
+        raise TypeError("Srclist must be a list here! ;-)")
 
 
-
-class Option():
+class Option:
     """Define an empty object"""
-    pass
 
+    pass
 
 
 def readgeneral(config):
     """Return an Option object with general information"""
     general = Option()
-    items = dict(config.items('general')).keys()
-    if 'imgext' in items:
-        general.imgext = config.get('general','imgext')
+    items = list(dict(config.items("general")).keys())
+    if "imgext" in items:
+        general.imgext = config.get("general", "imgext")
     else:
-        general.imgext = '.png, .pdf, .jpg'
-        
-    if 'srcext' in items:
-        general.srcext = config.get('general','srcext')
+        general.imgext = ".png, .pdf, .jpg"
+
+    if "srcext" in items:
+        general.srcext = config.get("general", "srcext")
     else:
-        general.srcext = '.tex'
-        
-    if 'verbose' in items:
-        general.verbose = config.getboolean('general','verbose')
+        general.srcext = ".tex"
+
+    if "verbose" in items:
+        general.verbose = config.getboolean("general", "verbose")
     else:
         general.verbose = False
-        
-    if 'compile' in items:
-        general.compile = config.getboolean('general','compile')
+
+    if "compile" in items:
+        general.compile = config.getboolean("general", "compile")
     else:
         general.compile = False
-        
-    if 'link' in items:
-        general.link = config.getboolean('general','link')
+
+    if "link" in items:
+        general.link = config.getboolean("general", "link")
     else:
         general.link = True
-        
-    if 'pdfcommand' in items:
-        general.pdfcommand = config.get('general','pdfcommand')
+
+    if "pdfcommand" in items:
+        general.pdfcommand = config.get("general", "pdfcommand")
     else:
-        general.pdfcommand = 'pdflatex build/main.tex'
-        
-    if 'dest' in items:
-        general.dest = config.get('general','dest')
+        general.pdfcommand = "pdflatex build/main.tex"
+
+    if "dest" in items:
+        general.dest = config.get("general", "dest")
     else:
-        general.dest = 'build'
-        
-    if 'source' in items:
-        general.source = config.get('general',
-                                    'source').replace(' ','').split(',')
+        general.dest = "build"
+
+    if "source" in items:
+        general.source = config.get("general", "source").replace(" ", "").split(",")
 
     return general
-        
+
 
 def readcfg(cfg):
     """Return a dictionary with the information read from a 
     configuration file"""
-    config = ConfigParser.ConfigParser()
+    config = configparser.ConfigParser()
     config.readfp(open(cfg))
     sections = config.sections()
-    #import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     opt = {}
-    opt['general'] = readgeneral(config)
-    sections.remove('general')
+    opt["general"] = readgeneral(config)
+    sections.remove("general")
     for sec in sections:
         # build a dictionary
         opt[sec] = dict(config.items(sec))
     return opt
 
-    
+
 if __name__ == "__main__":
     usage = "usage: %prog [options] SOURCE"
     parser = OptionParser(usage)
-    parser.add_option("-d", "--dest", dest="dest", default='build',
-                      help="Default is put inside a 'build' directory", 
-                      metavar="DIRECTORY")
-    parser.add_option("-c", "--cfg", dest="cfg", default='',
-                      help="Define your configure file", metavar="FILE")
-    parser.add_option("-s", "--srcext", dest="srcext", default='.tex',
-                      help="Source valid extensions like:'.tex, .txt' ", 
-                      metavar="STRING")
-    parser.add_option("-i", "--imgext", dest="imgext", 
-                      default='.png, .pdf, .jpg',
-                      help="Images valid extensions like:'.png, .pdf, .jpg' ", 
-                      metavar="STRING")
-    parser.add_option("-x", "--compile", action="store_true", dest="compile", 
-                      default=False, metavar="BOOLEAN",
-                      help="Compile generated latex to produce pdf")
-    parser.add_option("-p", "--pdfcommand", dest="pdfcommand", 
-                      default='pdflatex build/main.tex',
-                      help="Define the comand that you want to use to compile\
- LaTex files", 
-                      metavar="STRING")
-    parser.add_option("-l", "--link", action="store_true", dest="link", 
-                      default=False,  metavar="BOOLEAN",
-                      help="For not source files, make  a link the build\
- directory")
-    parser.add_option("-v", "--verbose", action="store_true", dest="verbose", 
-                      default=False,  metavar="BOOLEAN",
-                      help="Get more Info")
-    
+    parser.add_option(
+        "-d",
+        "--dest",
+        dest="dest",
+        default="build",
+        help="Default is put inside a 'build' directory",
+        metavar="DIRECTORY",
+    )
+    parser.add_option(
+        "-c",
+        "--cfg",
+        dest="cfg",
+        default="",
+        help="Define your configure file",
+        metavar="FILE",
+    )
+    parser.add_option(
+        "-s",
+        "--srcext",
+        dest="srcext",
+        default=".tex",
+        help="Source valid extensions like:'.tex, .txt' ",
+        metavar="STRING",
+    )
+    parser.add_option(
+        "-i",
+        "--imgext",
+        dest="imgext",
+        default=".png, .pdf, .jpg",
+        help="Images valid extensions like:'.png, .pdf, .jpg' ",
+        metavar="STRING",
+    )
+    parser.add_option(
+        "-x",
+        "--compile",
+        action="store_true",
+        dest="compile",
+        default=False,
+        metavar="BOOLEAN",
+        help="Compile generated latex to produce pdf",
+    )
+    parser.add_option(
+        "-p",
+        "--pdfcommand",
+        dest="pdfcommand",
+        default="pdflatex build/main.tex",
+        help="Define the comand that you want to use to compile\
+ LaTex files",
+        metavar="STRING",
+    )
+    parser.add_option(
+        "-l",
+        "--link",
+        action="store_true",
+        dest="link",
+        default=False,
+        metavar="BOOLEAN",
+        help="For not source files, make  a link the build\
+ directory",
+    )
+    parser.add_option(
+        "-v",
+        "--verbose",
+        action="store_true",
+        dest="verbose",
+        default=False,
+        metavar="BOOLEAN",
+        help="Get more Info",
+    )
+
     (options, args) = parser.parse_args()
-    
-    optcompile =  options.compile   
-    
-    #print '\n\n   dyn: ', os.getcwd()
+
+    optcompile = options.compile
+
+    # print '\n\n   dyn: ', os.getcwd()
     odir = os.path.abspath(os.path.curdir)
-    
+
     if options.cfg:
-        print options.cfg
+        print((options.cfg))
         opt = readcfg(options.cfg)
-        options = opt.pop('general')
+        options = opt.pop("general")
     else:
         opt = {}
-    
+
     if args:
         options.source = args
-    
+
     if options.source:
         if options.dest == None:
-            # destination is not define, then make a "build" directory 
+            # destination is not define, then make a "build" directory
             # in the folder where we run the program
-            options.dest = os.path.join(os.getcwd(),'build')
-            
+            options.dest = os.path.join(os.getcwd(), "build")
+
         # Start to process sources
-        processrc(options.source, opt, 
-                  _dst=options.dest, 
-                  srcext=options.srcext.replace(' ','').split(','),
-                  link=options.link)
+        processrc(
+            options.source,
+            opt,
+            _dst=options.dest,
+            srcext=options.srcext.replace(" ", "").split(","),
+            link=options.link,
+        )
     else:
-        print('Give me a latex source! Use cfg file or cmd line')
+        print("Give me a latex source! Use cfg file or cmd line")
 
     if optcompile:
         # change dir
-       
+
         odir = os.path.abspath(os.path.curdir)
-        print 'moving into: ', options.dest
+        print(("moving into: ", options.dest))
         os.chdir(options.dest)
         # run compile comand
-        print 'Start to compile using: '
-        print options.pdfcommand
-        print '='*50
+        print("Start to compile using: ")
+        print((options.pdfcommand))
+        print(("=" * 50))
         os.system(options.pdfcommand)
     os.chdir(odir)
-        
-        
 
-#===============================================================================
 
+# ===============================================================================
